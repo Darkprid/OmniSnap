@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { width: 305px; margin: 0; padding: 14px; background-color: #121218; color: #ffffff; font-family: Arial, sans-serif; }
+    h2 { margin: 0 0 2px 0; font-size: 16.5px; color: #ff0055; display: flex; align-items: center; justify-content: space-between; }
+    .badge { font-size: 10px; padding: 3px 8px; border-radius: 6px; background: #00e676; color: #000; font-weight: bold; }
+    .sub { font-size: 11px; color: #999; }
+    .card { background: #1e1e28; padding: 10px; border-radius: 8px; margin-top: 9px; font-size: 12px; border: 1px solid #2e2e3d; }
+    .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .row:last-child { margin-bottom: 0; }
+    .slider-group { margin-top: 8px; }
+    .slider-header { display: flex; justify-content: space-between; font-size: 11px; color: #ccc; margin-bottom: 3px; }
+    input[type="range"] { width: 100%; accent-color: #ff0055; cursor: pointer; margin: 0; }
+    select { background: #121218; color: #fff; border: 1px solid #444; border-radius: 4px; padding: 3px 6px; font-size: 11.5px; cursor: pointer; }
+    button { width: 100%; margin-top: 7px; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+    .btn-sitio { background: #2a2a38; color: #ddd; border: 1px solid #3d3d52; margin-top: 8px; padding: 6px; font-size: 11.5px; }
+    .btn-sitio.bloqueado { background: rgba(255, 82, 82, 0.15); color: #ff5252; border-color: #ff5252; }
+    .btn-kofi { background: #29abe0; color: #ffffff; margin-top: 8px; padding: 9px; font-size: 12.5px; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 2px 8px rgba(41, 171, 224, 0.3); }
+    .btn-kofi:hover { background: #38b8ed; }
+    .btn-sniffer { background: #00e5ff; color: #000; margin-top: 5px; }
+    .tip { font-size: 10.5px; color: #aaa; margin-top: 8px; line-height: 1.35; border-top: 1px solid #2a2a38; padding-top: 6px; }
+    .footer { margin-top: 9px; display: flex; justify-content: space-between; font-size: 11px; color: #888; }
+    .footer a { color: #ffb300; text-decoration: none; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>
+    VideoGrabber
+    <span class="badge">OPEN &amp; FREE</span>
+  </h2>
+  <div id="lblSub" class="sub">All Features Unlocked · Video, Audio &amp; Frame</div>
+
+  <div class="card">
+    <div class="row">
+      <span id="lblLang">🌐 Language:</span>
+      <select id="selIdioma">
+        <option value="auto" id="optAuto">Auto (Browser)</option>
+        <option value="es">Español</option>
+        <option value="en">English</option>
+        <option value="fr">Français</option>
+        <option value="de">Deutsch</option>
+        <option value="pt">Português</option>
+        <option value="it">Italiano</option>
+        <option value="ar">العربية</option>
+        <option value="zh">中文</option>
+        <option value="id">Bahasa Indonesia</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <span id="lblShowBtn">Show floating button:</span>
+      <input type="checkbox" id="chkMostrarBoton" checked style="cursor:pointer;width:15px;height:15px;accent-color:#ff0055;" />
+    </div>
+
+    <div class="row">
+      <span id="lblOnlyHover">Show only on video hover:</span>
+      <input type="checkbox" id="chkSoloHover" style="cursor:pointer;width:15px;height:15px;accent-color:#ff0055;" />
+    </div>
+
+    <div class="row">
+      <span id="lblCorner">Button Corner:</span>
+      <select id="selEsquina">
+        <option value="right" id="optTopRight">Top-Right</option>
+        <option value="left" id="optTopLeft">Top-Left</option>
+      </select>
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <span id="lblBtnSize">Button Size:</span>
+        <span id="valTamano">28px</span>
+      </div>
+      <input type="range" id="rngTamano" min="20" max="58" step="1" value="28" />
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <span id="lblIconOpacity">Icon Opacity:</span>
+        <span id="valOpacidad">35%</span>
+      </div>
+      <input type="range" id="rngOpacidad" min="10" max="100" step="1" value="35" />
+    </div>
+
+    <button id="btnToggleSitio" class="btn-sitio">🚫 Hide on this site</button>
+    <div id="lblShiftTip" class="tip">💡 Tip: Hold Shift + Click on the video button for instant max quality download.</div>
+  </div>
+
+  <div id="cajaSniffer" class="card" style="display:none;">
+    <div id="lblStreamDetected" style="color:#00e676;font-weight:bold;">⚡ Active Video Stream Detected</div>
+    <button id="btnDescargarSniffer" class="btn-sniffer">⬇ Download Detected Video</button>
+  </div>
+
+  <div class="card" style="text-align:center;">
+    <div id="lblSupportTitle" style="font-weight:bold;color:#fff;margin-bottom:3px;">❤️ Support Open Development</div>
+    <div id="lblSupportDesc" style="font-size:11px;color:#bbb;line-height:1.35;">
+      All video, WAV audio &amp; frame tools are 100% free with no limits. If this tool saves you time, buy me a coffee on Ko-fi!
+    </div>
+    <button id="btnKofi" class="btn-kofi">☕ Buy me a coffee on Ko-fi</button>
+  </div>
+
+  <div class="footer">
+    <span>v1.0.0 · 🤖 AI-Assisted</span>
+    <a href="#" id="linkGithub">⭐ Star on GitHub</a>
+  </div>
+
+  <script src="shared.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
