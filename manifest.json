@@ -10,13 +10,10 @@
     "128": "icon.png"
   },
   "permissions": [
-    "activeTab",
-    "scripting",
     "downloads",
     "storage",
     "offscreen",
-    "webRequest",
-    "tabs"
+    "webRequest"
   ],
   "host_permissions": [
     "<all_urls>"

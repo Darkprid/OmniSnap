@@ -17,6 +17,12 @@ async function extraerAudio({ url, maxBytes }) {
   const resp = await fetch(url);
   if (!resp.ok) throw new Error("Server refused request (" + resp.status + ").");
 
+  const declarado = parseInt(resp.headers.get("content-length") || "0", 10);
+  if (declarado > maxBytes) {
+    resp.body?.cancel().catch(() => {});
+    throw new Error("File is too large for audio extraction.");
+  }
+
   const buf = await resp.arrayBuffer();
   if (buf.byteLength > maxBytes) {
     throw new Error("File is too large for audio extraction.");

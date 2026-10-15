@@ -148,7 +148,6 @@
         a.click();
         a.remove();
         setTimeout(() => URL.revokeObjectURL(urlBlob), 10000);
-        chrome.runtime.sendMessage({ accion: "registrar_captura_frame" });
         mostrarAvisoToast(txt().frameSaved);
       }, "image/png");
     } catch (e) {
@@ -164,103 +163,105 @@
     return new Blob([arr], { type: tipo });
   }
 
-  chrome.runtime.onMessage.addListener(async (msg) => {
-    if (msg.accion === "actualizar_estilo_vivo") {
-      botonHabilitado = !msg.ocultarBoton;
-      soloHover = !!msg.soloHover;
-      esquina = msg.esquina || "right";
-      btnTamano = Number(msg.btnTamano);
-      btnOpacidad = Number(msg.btnOpacidad) / 100;
-      if (Array.isArray(msg.sitiosOcultos)) sitiosOcultos = msg.sitiosOcultos;
-      if (msg.idioma) idiomaPref = msg.idioma;
-      aplicarEstiloBotones();
-      return;
-    }
-
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (!msg) return;
     if (msg.accion === "mostrar_toast" && msg.texto) {
       mostrarAvisoToast(msg.texto, 6500);
-      return;
-    }
-
-    if (msg.accion === "mezclar_reddit_blobs") {
-      mostrarAvisoToast(txt().mergingReddit, 25000);
-      let urlV = null;
-      let urlA = null;
-      let audioCtx = null;
-      try {
-        const vBlob = b64ABlob(msg.videoB64, "video/mp4");
-        const aBlob = b64ABlob(msg.audioB64, "audio/mp4");
-        urlV = URL.createObjectURL(vBlob);
-        urlA = URL.createObjectURL(aBlob);
-
-        const vEl = document.createElement("video");
-        const aEl = document.createElement("audio");
-        vEl.muted = true;
-        vEl.playsInline = true;
-        vEl.src = urlV;
-        aEl.src = urlA;
-
-        await Promise.all([
-          new Promise((res, rej) => { vEl.onloadedmetadata = res; vEl.onerror = rej; }),
-          new Promise((res, rej) => { aEl.onloadedmetadata = res; aEl.onerror = rej; })
-        ]);
-
-        const streamV = vEl.captureStream ? vEl.captureStream() : vEl.mozCaptureStream();
-        audioCtx = new AudioContext();
-        if (audioCtx.state === "suspended") await audioCtx.resume();
-
-        const fuenteA = audioCtx.createMediaElementSource(aEl);
-        const destA = audioCtx.createMediaStreamDestination();
-        fuenteA.connect(destA);
-
-        const combinado = new MediaStream([
-          ...streamV.getVideoTracks(),
-          ...destA.stream.getAudioTracks()
-        ]);
-
-        const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1,mp4a.40.2")
-          ? "video/mp4;codecs=avc1,mp4a.40.2"
-          : MediaRecorder.isTypeSupported("video/mp4") ? "video/mp4" : "video/webm;codecs=vp8,opus";
-
-        const partes = [];
-        const rec = new MediaRecorder(combinado, { mimeType: mime, videoBitsPerSecond: 6000000 });
-        rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) partes.push(e.data); };
-
-        const limpiarRecursos = () => {
-          if (urlV) { URL.revokeObjectURL(urlV); urlV = null; }
-          if (urlA) { URL.revokeObjectURL(urlA); urlA = null; }
-          if (audioCtx) { audioCtx.close().catch(() => {}); audioCtx = null; }
-        };
-
-        rec.onstop = () => {
-          const finalBlob = new Blob(partes, { type: mime });
-          const urlDescarga = URL.createObjectURL(finalBlob);
-          const a = document.createElement("a");
-          a.href = urlDescarga;
-          a.download = mime.includes("mp4") ? msg.nombre : msg.nombre.replace(/\.mp4$/i, ".webm");
-          document.body.appendChild(a);
-          a.click();
-          a.remove();
-          setTimeout(() => URL.revokeObjectURL(urlDescarga), 10000);
-          limpiarRecursos();
-          mostrarAvisoToast(txt().redditDone, 4000);
-        };
-
-        vEl.onended = () => {
-          if (rec.state !== "inactive") rec.stop();
-          aEl.pause();
-        };
-
-        rec.start(200);
-        await Promise.all([vEl.play(), aEl.play()]);
-      } catch (e) {
-        if (urlV) URL.revokeObjectURL(urlV);
-        if (urlA) URL.revokeObjectURL(urlA);
-        if (audioCtx) audioCtx.close().catch(() => {});
-        mostrarAvisoToast("⚠️ " + e.message);
-      }
+    } else if (msg.accion === "mezclar_reddit_blobs") {
+      mezclarRedditBlobs(msg);
     }
   });
+
+  function descargarBlobLocal(blob, nombre) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = nombre;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }
+
+  async function mezclarRedditBlobs(msg) {
+    mostrarAvisoToast(txt().mergingReddit, 25000);
+    const vBlob = b64ABlob(msg.videoB64, "video/mp4");
+    const aBlob = b64ABlob(msg.audioB64, "audio/mp4");
+    const urlV = URL.createObjectURL(vBlob);
+    const urlA = URL.createObjectURL(aBlob);
+    let audioCtx = null;
+    let rec = null;
+    let watchdog = null;
+    let fallido = false;
+
+    const limpiarRecursos = () => {
+      clearTimeout(watchdog);
+      URL.revokeObjectURL(urlV);
+      URL.revokeObjectURL(urlA);
+      if (audioCtx) { audioCtx.close().catch(() => {}); audioCtx = null; }
+    };
+
+    try {
+      const vEl = document.createElement("video");
+      const aEl = document.createElement("audio");
+      vEl.muted = true;
+      vEl.playsInline = true;
+      vEl.src = urlV;
+      aEl.src = urlA;
+
+      await Promise.all([
+        new Promise((res, rej) => { vEl.onloadedmetadata = res; vEl.onerror = rej; }),
+        new Promise((res, rej) => { aEl.onloadedmetadata = res; aEl.onerror = rej; })
+      ]);
+
+      const streamV = vEl.captureStream ? vEl.captureStream() : vEl.mozCaptureStream();
+      audioCtx = new AudioContext();
+      if (audioCtx.state === "suspended") await audioCtx.resume();
+
+      const fuenteA = audioCtx.createMediaElementSource(aEl);
+      const destA = audioCtx.createMediaStreamDestination();
+      fuenteA.connect(destA);
+
+      const combinado = new MediaStream([
+        ...streamV.getVideoTracks(),
+        ...destA.stream.getAudioTracks()
+      ]);
+
+      const mime = MediaRecorder.isTypeSupported("video/mp4;codecs=avc1,mp4a.40.2")
+        ? "video/mp4;codecs=avc1,mp4a.40.2"
+        : MediaRecorder.isTypeSupported("video/mp4") ? "video/mp4" : "video/webm;codecs=vp8,opus";
+
+      const partes = [];
+      rec = new MediaRecorder(combinado, { mimeType: mime, videoBitsPerSecond: 6000000 });
+      rec.ondataavailable = (e) => { if (e.data && e.data.size > 0) partes.push(e.data); };
+
+      rec.onstop = () => {
+        vEl.pause();
+        aEl.pause();
+        limpiarRecursos();
+        if (fallido) return;
+        const nombre = mime.includes("mp4") ? msg.nombre : msg.nombre.replace(/\.mp4$/i, ".webm");
+        descargarBlobLocal(new Blob(partes, { type: mime }), nombre);
+        mostrarAvisoToast(txt().redditDone, 4000);
+      };
+
+      const detener = () => { if (rec.state !== "inactive") rec.stop(); };
+      vEl.onended = detener;
+      const duracionMs = isFinite(vEl.duration) && vEl.duration > 0 ? vEl.duration * 1000 : 120000;
+      watchdog = setTimeout(detener, duracionMs * 3 + 15000);
+
+      rec.start(200);
+      await Promise.all([vEl.play(), aEl.play()]);
+    } catch (e) {
+      fallido = true;
+      if (rec && rec.state !== "inactive") rec.stop();
+      else limpiarRecursos();
+      const base = msg.nombre.replace(/\.[a-z0-9]+$/i, "");
+      descargarBlobLocal(vBlob, base + ".mp4");
+      descargarBlobLocal(aBlob, base + "_audio.m4a");
+      mostrarAvisoToast(txt().redditSeparate, 6500);
+    }
+  }
 
   function crearBoton(esFijo = false, contenedorPadre = null) {
     const b = document.createElement("button");
@@ -484,6 +485,7 @@
 
   function escanear() {
     escaneoProgramado = false;
+    if (document.hidden) return;
 
     if (!sitioEstaPermitido()) {
       const btnTikTok = document.getElementById("vgp-tiktok-float");
@@ -609,9 +611,12 @@
   }
   ["loadedmetadata", "play", "emptied"].forEach((ev) => document.addEventListener(ev, programarEscaneo, true));
   window.addEventListener("resize", programarEscaneo);
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) programarEscaneo();
+  });
   if (plataformaActual === "tiktok") {
     window.addEventListener("scroll", programarEscaneo, { passive: true });
   }
   escanear();
-  setInterval(programarEscaneo, 2000);
+  setInterval(programarEscaneo, 2500);
 })();

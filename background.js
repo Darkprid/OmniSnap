@@ -3,6 +3,13 @@ importScripts("shared.js");
 const MAX_BYTES_AUDIO = 250 * 1024 * 1024;
 const MAX_REDDIT_MERGE_BYTES = 35 * 1024 * 1024;
 let extraccionesActivas = 0;
+let creandoOffscreen = null;
+const ultimoSnifferPorTab = new Map();
+
+function limpiarSniffer(tabId) {
+  ultimoSnifferPorTab.delete(tabId);
+  chrome.storage.session.remove("sniffer_" + tabId).catch(() => {});
+}
 
 chrome.webRequest.onBeforeRequest.addListener(
   (d) => {
@@ -10,6 +17,8 @@ chrome.webRequest.onBeforeRequest.addListener(
     let u;
     try { u = new URL(d.url); } catch (e) { return; }
     if (u.protocol !== "http:" && u.protocol !== "https:") return;
+    if (!/\.(mp4|webm|m4v)$/i.test(u.pathname)) return;
+    if (d.url.includes("range=") || d.url.includes("bytestart=")) return;
     if (VGP.esHostBloqueado(u.hostname)) return;
     if (d.initiator) {
       try {
@@ -17,21 +26,17 @@ chrome.webRequest.onBeforeRequest.addListener(
       } catch (e) {}
     }
     if (VGP.esDominio(u.hostname, "tiktok.com") && (d.url.includes("logo") || d.url.includes("intro"))) return;
-    if (/\.(mp4|webm|m4v)(\?|$)/i.test(u.pathname) && !d.url.includes("range=") && !d.url.includes("bytestart=")) {
-      chrome.storage.session.set({ ["sniffer_" + d.tabId]: d.url }).catch(() => {});
-    }
+    if (ultimoSnifferPorTab.get(d.tabId) === d.url) return;
+    ultimoSnifferPorTab.set(d.tabId, d.url);
+    chrome.storage.session.set({ ["sniffer_" + d.tabId]: d.url }).catch(() => {});
   },
   { urls: ["<all_urls>"], types: ["media", "xmlhttprequest", "other"] }
 );
 
-chrome.tabs.onRemoved.addListener((tabId) => {
-  chrome.storage.session.remove("sniffer_" + tabId).catch(() => {});
-});
+chrome.tabs.onRemoved.addListener(limpiarSniffer);
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.status === "loading") {
-    chrome.storage.session.remove("sniffer_" + tabId).catch(() => {});
-  }
+  if (changeInfo.status === "loading") limpiarSniffer(tabId);
 });
 
 async function leerSnifferTab(tabId) {
@@ -84,8 +89,6 @@ async function manejarMensaje(msg, tabId, frameId) {
       };
     case "consultar_sniffer":
       return { urlCapturada: await leerSnifferTab(tabId) };
-    case "registrar_captura_frame":
-      return { exito: true };
     case "obtener_calidades":
       return obtenerCalidades(msg, tabId, txt);
     case "descargar_elegido":
@@ -96,22 +99,48 @@ async function manejarMensaje(msg, tabId, frameId) {
 }
 
 async function asegurarOffscreen() {
-  const ctxs = await chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] });
-  if (ctxs.length) return;
-  await chrome.offscreen.createDocument({
-    url: "offscreen.html",
-    reasons: ["BLOBS"],
-    justification: "Decode audio track from video into WAV format."
-  });
+  if (creandoOffscreen) return creandoOffscreen;
+  creandoOffscreen = (async () => {
+    const ctxs = await chrome.runtime.getContexts({ contextTypes: ["OFFSCREEN_DOCUMENT"] });
+    if (ctxs.length) return;
+    await chrome.offscreen.createDocument({
+      url: "offscreen.html",
+      reasons: ["BLOBS"],
+      justification: "Decode audio track from video into WAV format."
+    });
+  })();
+  try {
+    await creandoOffscreen;
+  } finally {
+    creandoOffscreen = null;
+  }
+}
+
+async function hayBlobsPendientes() {
+  const todo = await chrome.storage.session.get(null);
+  return Object.keys(todo).some((k) => k.startsWith("dl_"));
 }
 
 async function limpiarOffscreen(blobUrl) {
   if (blobUrl) {
     try { await chrome.runtime.sendMessage({ target: "offscreen", tipo: "revocar", url: blobUrl }); } catch (e) {}
   }
-  if (extraccionesActivas === 0) {
+  if (extraccionesActivas === 0 && !(await hayBlobsPendientes())) {
     try { await chrome.offscreen.closeDocument(); } catch (e) {}
   }
+}
+
+async function finalizarDescargaBlob(id) {
+  const clave = "dl_" + id;
+  const r = await chrome.storage.session.get(clave);
+  const reg = r[clave];
+  if (!reg) return;
+  await chrome.storage.session.remove(clave);
+  if (reg.blobUrl) await limpiarOffscreen(reg.blobUrl);
+}
+
+function descargarDirecto(url, filename) {
+  return chrome.downloads.download({ url, filename, conflictAction: "uniquify", saveAs: false });
 }
 
 function sanitizarNombreConExt(raw, url, fallbackExt) {
@@ -143,6 +172,7 @@ async function procesarDescarga(msg, tabId, frameId, txt) {
 
   if (msg.extraerAudioWav) {
     extraccionesActivas++;
+    let blobUrl = null;
     try {
       await asegurarOffscreen();
       const r = await chrome.runtime.sendMessage({
@@ -154,49 +184,54 @@ async function procesarDescarga(msg, tabId, frameId, txt) {
       if (!r || !r.exito) {
         return { exito: false, error: txt.errAudioFailed };
       }
+      blobUrl = r.blobUrl;
       const nombreWav = nombreLimpio.replace(/\.[a-z0-9]+$/i, "") + ".wav";
-      const id = await chrome.downloads.download({
-        url: r.blobUrl,
-        filename: nombreWav,
-        conflictAction: "uniquify",
-        saveAs: false
-      });
-      await chrome.storage.session.set({ ["dl_" + id]: { blobUrl: r.blobUrl } });
+      const id = await descargarDirecto(blobUrl, nombreWav);
+      await chrome.storage.session.set({ ["dl_" + id]: { blobUrl } });
+      blobUrl = null;
+      // La descarga pudo terminar antes de registrar la clave (archivos pequeños).
+      const [item] = await chrome.downloads.search({ id });
+      if (!item || item.state !== "in_progress") await finalizarDescargaBlob(id);
       return { exito: true };
     } catch (e) {
       return { exito: false, error: txt.errAudioFailed };
     } finally {
       extraccionesActivas--;
+      if (blobUrl) await limpiarOffscreen(blobUrl);
     }
   }
 
   if (msg.audioUrl && tabId !== undefined && tabId !== null) {
+    const nombreAudio = nombreLimpio.replace(/\.[a-z0-9]+$/i, "") + "_audio.m4a";
+    const descargarPorSeparado = async () => {
+      await descargarDirecto(msg.url, nombreLimpio);
+      await descargarDirecto(msg.audioUrl, nombreAudio);
+      chrome.tabs.sendMessage(tabId, { accion: "mostrar_toast", texto: txt.redditSeparate }, { frameId }).catch(() => {});
+    };
+
     (async () => {
+      let vResp = null;
+      let aResp = null;
       try {
-        const [vResp, aResp] = await Promise.all([fetch(msg.url), fetch(msg.audioUrl)]);
+        [vResp, aResp] = await Promise.all([fetch(msg.url), fetch(msg.audioUrl)]);
         if (!vResp.ok || !aResp.ok) throw new Error("Fetch error");
 
         const vLen = parseInt(vResp.headers.get("content-length") || "0", 10);
         const aLen = parseInt(aResp.headers.get("content-length") || "0", 10);
-
         if (vLen + aLen > MAX_REDDIT_MERGE_BYTES) {
-          const nombreAudio = nombreLimpio.replace(/\.[a-z0-9]+$/i, "") + "_audio.m4a";
-          await chrome.downloads.download({ url: msg.url, filename: nombreLimpio, conflictAction: "uniquify", saveAs: false });
-          await chrome.downloads.download({ url: msg.audioUrl, filename: nombreAudio, conflictAction: "uniquify", saveAs: false });
-          chrome.tabs.sendMessage(tabId, { accion: "mostrar_toast", texto: txt.redditSeparate }, { frameId }).catch(() => {});
+          vResp.body?.cancel().catch(() => {});
+          aResp.body?.cancel().catch(() => {});
+          await descargarPorSeparado();
           return;
         }
 
         const [vBuf, aBuf] = await Promise.all([vResp.arrayBuffer(), aResp.arrayBuffer()]);
         if (vBuf.byteLength + aBuf.byteLength > MAX_REDDIT_MERGE_BYTES) {
-          const nombreAudio = nombreLimpio.replace(/\.[a-z0-9]+$/i, "") + "_audio.m4a";
-          await chrome.downloads.download({ url: msg.url, filename: nombreLimpio, conflictAction: "uniquify", saveAs: false });
-          await chrome.downloads.download({ url: msg.audioUrl, filename: nombreAudio, conflictAction: "uniquify", saveAs: false });
-          chrome.tabs.sendMessage(tabId, { accion: "mostrar_toast", texto: txt.redditSeparate }, { frameId }).catch(() => {});
+          await descargarPorSeparado();
           return;
         }
 
-        chrome.tabs.sendMessage(
+        await chrome.tabs.sendMessage(
           tabId,
           {
             accion: "mezclar_reddit_blobs",
@@ -205,39 +240,29 @@ async function procesarDescarga(msg, tabId, frameId, txt) {
             nombre: nombreLimpio
           },
           { frameId }
-        ).catch(() => {});
+        );
       } catch (e) {
-        chrome.downloads.download({ url: msg.url, filename: nombreLimpio, conflictAction: "uniquify", saveAs: false });
+        try { vResp?.body?.cancel(); } catch (_) {}
+        try { aResp?.body?.cancel(); } catch (_) {}
+        await descargarPorSeparado().catch(() => {});
       }
     })();
     return { exito: true, esRedditMerge: true };
   }
 
   try {
-    await chrome.downloads.download({
-      url: msg.url,
-      filename: nombreLimpio,
-      conflictAction: "uniquify",
-      saveAs: false
-    });
+    await descargarDirecto(msg.url, nombreLimpio);
     return { exito: true };
   } catch (e) {
     return { exito: false, error: txt.errDownloadFailed };
   }
 }
 
-chrome.downloads.onChanged.addListener(async (delta) => {
+chrome.downloads.onChanged.addListener((delta) => {
   if (!delta.state) return;
   const est = delta.state.current;
   if (est !== "complete" && est !== "interrupted") return;
-
-  const clave = "dl_" + delta.id;
-  const r = await chrome.storage.session.get(clave);
-  const reg = r[clave];
-  if (!reg) return;
-  await chrome.storage.session.remove(clave);
-
-  if (reg.blobUrl) await limpiarOffscreen(reg.blobUrl);
+  finalizarDescargaBlob(delta.id).catch(() => {});
 });
 
 function arrayBufferABase64(buffer) {
@@ -287,6 +312,9 @@ async function buscarAudioReddit(videoUrl, dashUrl) {
 }
 
 async function obtenerCalidades(msg, tabId, txt) {
+  if (msg.plataforma !== "web" && !validarSolicitudUrl(msg.url, txt).ok) {
+    return { exito: false, error: txt.errLoadQualities };
+  }
   const resDomReal = VGP.formatearResolucion(msg.altoVideo || 0, msg.anchoVideo || 0);
   const tituloDom = VGP.limpiarFragmentoNombre(msg.tituloPagina || "", 40);
 
@@ -438,7 +466,7 @@ async function obtenerCalidades(msg, tabId, txt) {
         const autor = VGP.limpiarFragmentoNombre(d.author?.unique_id || d.author?.nickname || "", 20);
         const tituloTk = VGP.limpiarFragmentoNombre(d.title || tituloDom || d.id, 38);
         const baseName = "TikTok_" + (autor ? ("@" + autor + "_") : "") + (tituloTk || d.id);
-        const etqReal = resDomReal || "HD 1080p";
+        const etqReal = "HD (source)";
 
         const cal = [];
         if (d.hdplay) {
@@ -447,13 +475,6 @@ async function obtenerCalidades(msg, tabId, txt) {
         } else if (d.play) {
           const etqPlay = resDomReal || "MP4";
           cal.push({ etiqueta: etqPlay, url: fix(d.play), nombre: baseName + "_" + etqPlay.replace(/\s+/g, "_") + ".mp4" });
-        }
-        if (d.music) {
-          cal.push({
-            etiqueta: txt.audioOnly + " (MP3)",
-            url: fix(d.music),
-            nombre: baseName + "_Audio.mp3"
-          });
         }
         if (cal.length > 0) return { exito: true, calidades: cal };
       }
@@ -475,8 +496,7 @@ async function obtenerCalidades(msg, tabId, txt) {
         return {
           exito: true,
           calidades: [
-            { etiqueta: etqIg, url: vUrl, nombre: baseIg + "_" + etqIg.replace(/\s+/g, "_") + "." + extIg },
-            { etiqueta: txt.audioOnly + " (WAV)", url: vUrl, extraerAudioWav: true, nombre: baseIg + "_Audio.wav" }
+            { etiqueta: etqIg, url: vUrl, nombre: baseIg + "_" + etqIg.replace(/\s+/g, "_") + "." + extIg }
           ]
         };
       }
