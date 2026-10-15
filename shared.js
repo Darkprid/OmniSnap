@@ -2,7 +2,7 @@
 var VGP = (function () {
   var CONFIG = {
     URL_KOFI: "https://ko-fi.com/darkprid",
-    URL_GITHUB: "https://github.com/darkprid/VideoGrabber"
+    URL_GITHUB: "https://github.com/darkprid/OmniSnap"
   };
 
   var DOMINIOS_BLOQUEADOS = [

@@ -149,13 +149,13 @@ function sanitizarNombreConExt(raw, url, fallbackExt) {
   const esAudioExplicito = extPropia === "mp3" || extPropia === "m4a" || extPropia === "wav" || extPropia === "ogg";
   const extFinal = esAudioExplicito ? extPropia : VGP.extDeUrl(url, extPropia || fallbackExt || "mp4");
 
-  let base = String(raw || ("VideoGrabber_" + Date.now()))
+  let base = String(raw || ("OmniSnap_" + Date.now()))
     .replace(/\.[a-z0-9]{2,5}$/i, "")
     .replace(/[<>:"/\\|?*\x00-\x1F]/g, "_")
     .replace(/\s+/g, "_")
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "");
-  if (!base) base = "VideoGrabber_" + Date.now();
+  if (!base) base = "OmniSnap_" + Date.now();
   return base + "." + extFinal;
 }
 
