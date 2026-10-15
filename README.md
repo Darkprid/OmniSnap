@@ -16,6 +16,12 @@
 
 ---
 
+<p align="center">
+  <img src="demo.gif" alt="OmniSnap in Action" width="600">
+</p>
+
+---
+
 ## ✨ Key Features / Características Principales
 
 * **🌐 Multi-Platform Support:** Works seamlessly on **X (Twitter), Reddit (with automatic video + audio merging), TikTok (1080p source quality), Instagram, Pinterest**, forums, and standard HTML5 `<video>` websites.

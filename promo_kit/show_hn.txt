@@ -1,0 +1,20 @@
+URL de envío: https://news.ycombinator.com/submit
+
+Título:
+Show HN: OmniSnap – Open-source video, audio, and frame grabber (Manifest V3)
+
+URL:
+https://github.com/Darkprid/OmniSnap
+
+Texto (si se publica como Ask/Show texto):
+Hi HN,
+
+I built OmniSnap (https://github.com/Darkprid/OmniSnap), a lightweight Manifest V3 extension for Chrome/Edge/Brave to save embedded media in its original quality.
+
+Key technical decisions:
+- Uses the Chrome Offscreen Document API for hardware-efficient Web Audio decoding to standard WAV without keeping background contexts open.
+- In-browser MediaRecorder stream synthesis to seamlessly merge Reddit's separated DASH video and audio streams without server transcoding.
+- In-memory sniffer throttling to prevent storage.session thrashing during chunked HTTP media requests.
+- Strictly blocks encrypted DRM platforms (YouTube, Netflix, Spotify) by design to remain compliant with store policies.
+
+Code is MIT licensed, zero analytics, zero external dependencies. Feedback and PRs are welcome!

@@ -1,0 +1,29 @@
+🧵 HILO PARA TWITTER / X (#buildinpublic #opensource)
+
+TWEET 1 (Gancho):
+Tired of media downloader extensions that show ads, track your data, or charge a $10/mo subscription?
+
+I built OmniSnap: a 100% free & open-source browser extension (Manifest V3) to grab videos, extract WAV audio, and capture high-res PNG frames.
+
+Here's how it works 👇
+
+TWEET 2 (Features):
+⚡ Hold Shift + Click on any video for instant max-resolution download
+🎵 Native WAV/M4A audio extraction via Chrome Offscreen API
+📸 High-res PNG frame capture in 1 click
+🌐 Works on X, Reddit, TikTok (1080p source), Instagram, Pinterest & HTML5
+🌍 9 languages built-in
+
+TWEET 3 (Privacy & Open Source):
+OmniSnap runs 100% locally in your browser.
+No tracking. No ads. No servers.
+Licensed under MIT.
+
+TWEET 4 (CTA):
+Check it out and star it on GitHub:
+👉 https://github.com/Darkprid/OmniSnap
+
+If it saves you time, you can buy me a coffee on Ko-fi:
+☕ https://ko-fi.com/darkprid
+
+#chrome #opensource #webdev #javascript #ai

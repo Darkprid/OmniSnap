@@ -1,0 +1,18 @@
+🎬 GUION DE VÍDEO CORTO (15 SEGUNDOS) PARA TIKTOK / REELS / SHORTS
+
+[0:00 - 0:03] GANCHO VISUAL:
+Muestra la pantalla con un vídeo de Reddit o X.
+Voz / Texto: "¿Sigues usando páginas llenas de anuncios para descargar vídeos de internet?"
+
+[0:03 - 0:08] DEMOSTRACIÓN:
+Pasa el cursor por el vídeo, mantén pulsada la tecla Shift y haz clic en el botón rosa de OmniSnap.
+Enseña cómo la descarga empieza inmediatamente en máxima calidad en la barra de descargas.
+Texto: "Shift + Clic = Descarga instantánea en calidad original ⚡"
+
+[0:08 - 0:12] FUNCIONES ÚNICAS:
+Abre el menú y pulsa "Guardar Fotograma (PNG)" o "Solo Audio".
+Texto: "Extrae audio en WAV y captura fotogramas en PNG sin marcas de agua 📸"
+
+[0:12 - 0:15] CIERRE:
+Muestra la página de GitHub.
+Texto / Voz: "Es 100% gratis y de código abierto en GitHub. Se llama OmniSnap."
