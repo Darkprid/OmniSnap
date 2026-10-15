@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniSnap ⚡ | Descarga Vídeos con 1 Clic</title>
+  <meta name="description" content="Extensión gratuita y de código abierto para Google Chrome y Microsoft Edge. Descarga vídeos de Twitter, TikTok y Reddit en máxima calidad.">
+  <link rel="icon" type="image/png" href="icon.png">
+  
+  <!-- Tipografía moderna -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg: #0b0b10;
+      --card-bg: rgba(22, 22, 30, 0.75);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --primary: #ff0055;
+      --primary-hover: #ff2270;
+      --cyan: #00e5ff;
+      --green: #00e676;
+      --orange: #ff4500;
+      --text: #f5f5f7;
+      --text-muted: #8e8e9f;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(255, 0, 85, 0.18) 0%, transparent 55%),
+        radial-gradient(circle at 80% 80%, rgba(0, 229, 255, 0.08) 0%, transparent 40%);
+      color: var(--text);
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 40px 18px 60px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Avatar & Perfil */
+    .avatar-wrapper {
+      position: relative;
+      margin-bottom: 18px;
+    }
+
+    .avatar {
+      width: 110px;
+      height: 110px;
+      border-radius: 26px;
+      display: block;
+      box-shadow: 0 12px 30px rgba(255, 0, 85, 0.35);
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .avatar:hover {
+      transform: scale(1.05) rotate(-2deg);
+    }
+
+    .title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tagline {
+      font-size: 14px;
+      color: var(--text-muted);
+      text-align: center;
+      line-height: 1.5;
+      margin-bottom: 18px;
+    }
+
+    /* Badges de compatibilidad */
+    .badges {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: #e0e0ea;
+    }
+
+    .badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+
+    .dot-green { background: var(--green); box-shadow: 0 0 8px var(--green); }
+    .dot-cyan { background: var(--cyan); }
+    .dot-pink { background: var(--primary); }
+
+    /* Lista de Enlaces */
+    .links-list {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .link-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 16px 20px;
+      border-radius: 18px;
+      text-decoration: none;
+      color: var(--text);
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(12px);
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+
+    .link-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .link-card.primary {
+      background: linear-gradient(135deg, #ff0055 0%, #d10043 100%);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      box-shadow: 0 10px 26px rgba(255, 0, 85, 0.3);
+    }
+
+    .link-card.primary:hover {
+      background: linear-gradient(135deg, #ff2270 0%, #e0004c 100%);
+      box-shadow: 0 14px 32px rgba(255, 0, 85, 0.45);
+    }
+
+    .link-card.kofi {
+      background: linear-gradient(135deg, rgba(255, 95, 95, 0.15) 0%, rgba(22, 22, 30, 0.8) 100%);
+      border-color: rgba(255, 95, 95, 0.3);
+    }
+
+    .link-card.kofi:hover {
+      border-color: rgba(255, 95, 95, 0.6);
+      box-shadow: 0 10px 24px rgba(255, 95, 95, 0.2);
+    }
+
+    .link-content {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .link-icon {
+      font-size: 24px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .link-texts {
+      display: flex;
+      flex-direction: column;
+      text-align: left;
+    }
+
+    .link-title {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .link-subtitle {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .link-card.primary .link-subtitle {
+      color: rgba(255, 255, 255, 0.85);
+    }
+
+    .arrow-icon {
+      font-size: 18px;
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+    }
+
+    .link-card:hover .arrow-icon {
+      transform: translateX(4px);
+      color: var(--text);
+    }
+
+    .link-card.primary .arrow-icon {
+      color: #ffffff;
+    }
+
+    /* Sección Guía rápida */
+    .guide-box {
+      margin-top: 32px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 18px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .guide-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .guide-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding-left: 4px;
+    }
+
+    .guide-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      line-height: 1.4;
+    }
+
+    .step-num {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 700;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 36px;
+      font-size: 12px;
+      color: #555566;
+      text-align: center;
+    }
+
+    .footer a {
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      color: var(--text);
+    }
+  </style>
+</head>
+<body>
+
+  <main class="container">
+    <!-- Header -->
+    <div class="avatar-wrapper">
+      <img src="icon.png" alt="Logo de OmniSnap" class="avatar">
+    </div>
+
+    <h1 class="title">OmniSnap ⚡</h1>
+    <p class="tagline">Descarga cualquier vídeo de Twitter, TikTok y Reddit en 1 solo clic. Gratis y de código abierto.</p>
+
+    <!-- Badges -->
+    <div class="badges">
+      <span class="badge"><span class="badge-dot dot-green"></span> 100% Gratis</span>
+      <span class="badge"><span class="badge-dot dot-cyan"></span> Google Chrome</span>
+      <span class="badge"><span class="badge-dot dot-pink"></span> Microsoft Edge</span>
+      <span class="badge">Licencia MIT</span>
+    </div>
+
+    <!-- Enlaces -->
+    <div class="links-list">
+      <!-- 1. Descarga Principal -->
+      <a href="https://github.com/Darkprid/OmniSnap/releases" target="_blank" class="link-card primary">
+        <div class="link-content">
+          <span class="link-icon">📥</span>
+          <div class="link-texts">
+            <span class="link-title">Descargar OmniSnap (Última versión)</span>
+            <span class="link-subtitle">Descarga el archivo ZIP oficial en GitHub</span>
+          </div>
+        </div>
+        <span class="arrow-icon">→</span>
+      </a>
+
+      <!-- 2. Código en GitHub -->
+      <a href="https://github.com/Darkprid/OmniSnap" target="_blank" class="link-card">
+        <div class="link-content">
+          <span class="link-icon">⭐</span>
+          <div class="link-texts">
+            <span class="link-title">Ver Código Fuente en GitHub</span>
+            <span class="link-subtitle">Revisa el código y déjale una estrella</span>
+          </div>
+        </div>
+        <span class="arrow-icon">→</span>
+      </a>
+
+      <!-- 3. Sugerencias e Issues -->
+      <a href="https://github.com/Darkprid/OmniSnap/issues" target="_blank" class="link-card">
+        <div class="link-content">
+          <span class="link-icon">💡</span>
+          <div class="link-texts">
+            <span class="link-title">Sugerir Plataforma o Reportar Error</span>
+            <span class="link-subtitle">Abre un issue en GitHub</span>
+          </div>
+        </div>
+        <span class="arrow-icon">→</span>
+      </a>
+
+      <!-- 4. Donación Ko-fi -->
+      <a href="https://ko-fi.com/darkprid" target="_blank" class="link-card kofi">
+        <div class="link-content">
+          <span class="link-icon">☕</span>
+          <div class="link-texts">
+            <span class="link-title">Apoyar el Proyecto en Ko-fi</span>
+            <span class="link-subtitle">100% voluntario para ayudar al desarrollo</span>
+          </div>
+        </div>
+        <span class="arrow-icon">→</span>
+      </a>
+    </div>
+
+    <!-- Guía rápida de instalación -->
+    <div class="guide-box">
+      <div class="guide-title">
+        <span>⚙️</span> Cómo instalar en Chrome o Edge (30 segundos):
+      </div>
+      <div class="guide-steps">
+        <div class="guide-step">
+          <span class="step-num">1</span>
+          <span>Descarga y descomprime el archivo ZIP.</span>
+        </div>
+        <div class="guide-step">
+          <span class="step-num">2</span>
+          <span>Abre <code>chrome://extensions</code> o <code>edge://extensions</code> en tu navegador.</span>
+        </div>
+        <div class="guide-step">
+          <span class="step-num">3</span>
+          <span>Activa el <strong>Modo de desarrollador</strong> (arriba a la derecha).</span>
+        </div>
+        <div class="guide-step">
+          <span class="step-num">4</span>
+          <span>Pulsa en <strong>Cargar descomprimida</strong> y selecciona la carpeta. ¡Listo!</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>Desarrollado con dedicación por <a href="https://github.com/Darkprid" target="_blank">Darkprid</a> • Sin anuncios • Sin rastreadores</p>
+    </footer>
+  </main>
+
+</body>
+</html>
